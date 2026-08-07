@@ -1,37 +1,35 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from google import genai
+from fastapi import FastAPI
 
-app = FastAPI(title="AgentForge AI Backend")
+from app.routes.solve import router as solve_router
+from app.database.db import create_db
 
-# Enable CORS for Frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="AgentForge AI Backend",
+    version="1.0.0",
+    description="Backend for Multi-Agent Collaboration"
 )
 
-# Replace YOUR_GEMINI_API_KEY with your actual key from Google AI Studio
-client = genai.Client(api_key="AQ.Ab8RN6JbvaJL-zOb1ASao0fuBXq5o_Eb6A8ng2kjcHudk07gog")
+# Register all API routes
+app.include_router(solve_router)
 
-class GoalRequest(BaseModel):
-    goal: str
 
+# Create database when server starts
+@app.on_event("startup")
+def startup():
+    create_db()
+
+
+# Root endpoint
 @app.get("/")
-def read_root():
-    return {"status": "AgentForge AI Backend Live"}
+def root():
+    return {
+        "message": "AgentForge AI Backend is Running 🚀"
+    }
 
-@app.post("/solve")
-async def solve_goal(request: GoalRequest):
-    try:
-        prompt = f"You are AgentForge AI. Provide a detailed, step-by-step solution for this goal: {request.goal}"
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt,
-        )
-        return {"result": response.text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+# Health check endpoint
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy"
+    }
