@@ -10,12 +10,12 @@ tags:
 - trl
 ---
 
-# AgentForge AI - Researcher Agent Model Card
+# AgentForge AI - Developer Agent Model Card
 
 ## Model Details
 
 ### Model Description
-The **Researcher Agent** is a specialized domain model fine-tuned for the AgentForge AI autonomous multi-agent orchestration platform. It is fine-tuned on top of Qwen/Qwen2.5-0.5B-Instruct using Hugging Face PEFT (LoRA).
+The **Developer Agent** is a specialized domain model fine-tuned for the AgentForge AI autonomous multi-agent orchestration platform. It is fine-tuned on top of Qwen/Qwen2.5-0.5B-Instruct using Hugging Face PEFT (LoRA).
 
 - **Developed by:** SyntaxError Team (AgentForge AI)
 - **Model type:** Causal Language Model Adapter (LoRA)
@@ -26,7 +26,7 @@ The **Researcher Agent** is a specialized domain model fine-tuned for the AgentF
 ## Uses
 
 ### Direct Use
-Gathers architectural context and evaluates engineering specs.
+Generates production-ready code blocks in Python, React, SQL, and Docker.
 
 ### Ecosystem Integration
 Used as Stage in the 5-stage AgentForge AI pipeline: Planner -> Decomposer -> Researcher -> Developer -> Evaluator.
@@ -34,7 +34,7 @@ Used as Stage in the 5-stage AgentForge AI pipeline: Planner -> Decomposer -> Re
 ## Training Details
 
 ### Training Data
-Trained on research_data.jsonl containing high-quality domain system prompts and instruction-response pairs.
+Trained on developer_data.jsonl containing high-quality domain system prompts and instruction-response pairs.
 
 ### Training Hyperparameters
 - **Adapter Type:** LoRA (PEFT)
@@ -47,6 +47,3 @@ Trained on research_data.jsonl containing high-quality domain system prompts and
 ## Hardware & Environment
 - **Hardware:** NVIDIA GeForce RTX 5060 Laptop GPU
 - **Software:** PyTorch 2.6, PEFT 0.20.0, TRL 1.9.2, Transformers 5.14.1
-### Framework versions
-
-- PEFT 0.20.0
