@@ -147,10 +147,10 @@ def run_agent_pipeline_background(session_id: str, goal: str):
         update_session_state(session_id, current_agent="Decomposer", progress=50, status="processing")
         time.sleep(1.2)
 
-        # Stage 3: Execution Agent
-        logger.info(f"Session {session_id}: Executor running task sub-agents...")
-        executor_res = call_llm_agent(f"Execute work for goal: '{goal}' based on sub-tasks.", "Executor")
-        update_session_state(session_id, current_agent="Executor", progress=75, status="processing")
+        # Stage 3: Developer Agent (Code Execution)
+        logger.info(f"Session {session_id}: Developer agent generating code execution...")
+        developer_res = call_llm_agent(f"Generate clean, production-ready code implementation for: '{goal}'.", "Developer")
+        update_session_state(session_id, current_agent="Developer", progress=75, status="processing")
         time.sleep(1.2)
 
         # Stage 4: Evaluator & Final Synthesis
@@ -162,9 +162,10 @@ def run_agent_pipeline_background(session_id: str, goal: str):
             f"**Goal**: {goal}\n\n"
             f"#### 1. Strategic Plan (Planner Agent)\n{planner_res}\n\n"
             f"#### 2. Task Decomposition (Decomposer Agent)\n{decomposer_res}\n\n"
-            f"#### 3. Sub-Task Execution (Executor Agent)\n{executor_res}\n\n"
+            f"#### 3. Code Implementation (Developer Agent)\n{developer_res}\n\n"
             f"#### 4. Final Evaluation & Solution Synthesis\n{evaluator_res}"
         )
+
 
         update_session_state(
             session_id,
