@@ -1,6 +1,9 @@
 # Python virtual environments
 **/.venv/
 venv/
+venv312/
+local_researcher_model/
+
 
 # Python cache
 **/__pycache__/
