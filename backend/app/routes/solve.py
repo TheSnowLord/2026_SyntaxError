@@ -4,10 +4,11 @@ from sqlmodel import select, desc
 
 from app.database.db import get_session
 from app.database.models import AgentSession
-from app.schemas.schemas import SolveRequest, SolveResponse, SessionStatusResponse, SessionListResponse
+from app.schemas.schemas import SolveRequest, SolveResponse, SessionStatusResponse, SessionListResponse, AnalyticsStatsResponse, ExportReportResponse
 from app.services.ai_service import run_agent_pipeline_background, manager
 
 router = APIRouter(tags=["Solving & Sessions"])
+
 
 
 @router.post("/solve", response_model=SolveResponse, status_code=status.HTTP_200_OK)
@@ -117,4 +118,69 @@ async def websocket_session_stream(websocket: WebSocket, session_id: str):
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         manager.disconnect(session_id, websocket)
+
+
+@router.get("/api/stats", response_model=AnalyticsStatsResponse)
+def get_analytics_stats():
+    with get_session() as db:
+        statement = select(AgentSession)
+        results = db.exec(statement).all()
+        total = len(results)
+
+        completed = sum(1 for s in results if s.status == "completed")
+        failed = sum(1 for s in results if s.status == "failed")
+        processing = sum(1 for s in results if s.status == "processing")
+        avg_progress = (sum(s.progress for s in results) / total) if total > 0 else 0.0
+
+        breakdown = {}
+        for s in results:
+            agent = s.current_agent or "Unknown"
+            breakdown[agent] = breakdown.get(agent, 0) + 1
+
+        return AnalyticsStatsResponse(
+            total_sessions=total,
+            completed_sessions=completed,
+            failed_sessions=failed,
+            processing_sessions=processing,
+            average_progress=round(avg_progress, 1),
+            active_agent_breakdown=breakdown
+        )
+
+
+@router.delete("/api/session/{session_id}")
+def delete_session(session_id: str):
+    with get_session() as db:
+        statement = select(AgentSession).where(AgentSession.session_id == session_id)
+        session_obj = db.exec(statement).first()
+        if not session_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found."
+            )
+        db.delete(session_obj)
+        db.commit()
+        return {"message": f"Session '{session_id}' successfully deleted."}
+
+
+@router.get("/api/session/{session_id}/export", response_model=ExportReportResponse)
+def export_session_report(session_id: str):
+    with get_session() as db:
+        statement = select(AgentSession).where(AgentSession.session_id == session_id)
+        session_obj = db.exec(statement).first()
+        if not session_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found."
+            )
+
+        report = session_obj.result or f"# AgentForge AI Session Report\n\n**Goal**: {session_obj.goal}\n**Status**: {session_obj.status}\n**Progress**: {session_obj.progress}%"
+
+        return ExportReportResponse(
+            session_id=session_obj.session_id,
+            goal=session_obj.goal,
+            status=session_obj.status,
+            created_at=session_obj.created_at,
+            report_markdown=report
+        )
+
 
