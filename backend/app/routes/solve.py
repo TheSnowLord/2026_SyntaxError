@@ -45,6 +45,8 @@ def solve(request: SolveRequest, background_tasks: BackgroundTasks):
     )
 
 
+
+
 @router.get("/api/sessions", response_model=SessionListResponse)
 def list_sessions():
     with get_session() as db:

@@ -13,6 +13,8 @@ class SolveResponse(BaseModel):
     current_agent: str
     progress: int
     message: str
+    result: Optional[str] = None
+
 
 
 class SessionStatusResponse(BaseModel):
