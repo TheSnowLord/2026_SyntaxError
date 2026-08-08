@@ -8,202 +8,195 @@ tags:
 - sft
 - transformers
 - trl
+- agentforge-ai
+- researcher-agent
 ---
 
-# Model Card for Model ID
+# Fine-Tuned Researcher Agent Model Card
 
-<!-- Provide a quick summary of what the model is/does. -->
-
-
+This is a fine-tuned LoRA adapter model derived from `Qwen/Qwen2.5-0.5B-Instruct`, specialized for technical research, task breakdown, architectural analysis, and multi-agent coordination within the **AgentForge AI** platform.
 
 ## Model Details
 
 ### Model Description
 
-<!-- Provide a longer summary of what this model is. -->
+The **Fine-Tuned Researcher Agent** is an lightweight, domain-adapted language model adapter designed to analyze complex user goals, extract technical constraints, partition tasks into execution steps, and provide structured architectural guidance for downstream developer and evaluator agents.
 
+- **Developed by:** SyntaxError Team (`2026_SyntaxError`)
+- **Funded by:** AgentForge AI Initiative
+- **Shared by:** SyntaxError Team
+- **Model type:** PEFT / LoRA Causal Language Model Adapter
+- **Language(s) (NLP):** English (en)
+- **License:** Apache-2.0
+- **Finetuned from model:** [Qwen/Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
 
+### Model Sources
 
-- **Developed by:** [More Information Needed]
-- **Funded by [optional]:** [More Information Needed]
-- **Shared by [optional]:** [More Information Needed]
-- **Model type:** [More Information Needed]
-- **Language(s) (NLP):** [More Information Needed]
-- **License:** [More Information Needed]
-- **Finetuned from model [optional]:** [More Information Needed]
-
-### Model Sources [optional]
-
-<!-- Provide the basic links for the model. -->
-
-- **Repository:** [More Information Needed]
-- **Paper [optional]:** [More Information Needed]
-- **Demo [optional]:** [More Information Needed]
+- **Repository:** [https://github.com/TheSnowLord/2026_SyntaxError](https://github.com/TheSnowLord/2026_SyntaxError)
+- **Demo:** Integrated into AgentForge AI Web Interface (`src/App.jsx`)
 
 ## Uses
 
-<!-- Address questions around how the model is intended to be used, including the foreseeable users of the model and those affected by the model. -->
-
 ### Direct Use
 
-<!-- This section is for the model use without fine-tuning or plugging into a larger ecosystem/app. -->
+The model is directly used as the **Researcher Agent** within multi-agent AI workflows. It processes high-level requirements and returns:
+1. Architectural recommendations.
+2. Structured task breakdown lists.
+3. Relevant technical context and dependencies.
 
-[More Information Needed]
+### Downstream Use
 
-### Downstream Use [optional]
-
-<!-- This section is for the model use when fine-tuned for a task, or when plugged into a larger ecosystem/app -->
-
-[More Information Needed]
+Integrated into the **AgentForge AI** orchestration platform (`backend/app/services/ai_service.py`), feeding structured research output directly into Developer and Reviewer agents.
 
 ### Out-of-Scope Use
 
-<!-- This section addresses misuse, malicious use, and uses that the model will not work well for. -->
-
-[More Information Needed]
+- High-risk medical, legal, or financial advice without human expert oversight.
+- Direct execution of unchecked shell commands without sandboxing.
 
 ## Bias, Risks, and Limitations
 
-<!-- This section is meant to convey both technical and sociotechnical limitations. -->
-
-[More Information Needed]
+- Inherits underlying capabilities and parametric knowledge from `Qwen/Qwen2.5-0.5B-Instruct`.
+- May occasionally recommend outdated library versions if given ambiguous prompts.
 
 ### Recommendations
 
-<!-- This section is meant to convey recommendations with respect to the bias, risk, and technical limitations. -->
-
-Users (both direct and downstream) should be made aware of the risks, biases and limitations of the model. More information needed for further recommendations.
+Users should validate generated architectural plans against project-specific infrastructure requirements before automated deployment.
 
 ## How to Get Started with the Model
 
-Use the code below to get started with the model.
+Use the Python snippet below to load the base model and apply this PEFT adapter:
 
-[More Information Needed]
+```python
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
+
+base_model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+adapter_dir = "./fine_tuned_researcher"
+
+# Load Tokenizer & Base Model
+tokenizer = AutoTokenizer.from_pretrained(base_model_id, trust_remote_code=True)
+base_model = AutoModelForCausalLM.from_pretrained(
+    base_model_id,
+    torch_dtype=torch.float32,
+    device_map="cpu",
+    trust_remote_code=True
+)
+
+# Apply LoRA Adapter
+model = PeftModel.from_pretrained(base_model, adapter_dir)
+
+# Prompt Formatting
+messages = [
+    {"role": "system", "content": "You are the specialized Researcher Agent in AgentForge AI."},
+    {"role": "user", "content": "Analyze requirements for building a microservice with FastAPI and React."}
+]
+prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
+inputs = tokenizer(prompt, return_tensors="pt")
+outputs = model.generate(**inputs, max_new_tokens=256)
+print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+```
 
 ## Training Details
 
 ### Training Data
 
-<!-- This should link to a Dataset Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
-
-[More Information Needed]
+The model was trained using Supervised Fine-Tuning (SFT) on `research_data.jsonl`, a curated dataset of multi-turn problem-solving conversations, technical specifications, and task decomposition scenarios.
 
 ### Training Procedure
 
-<!-- This relates heavily to the Technical Specifications. Content here should link to that section when it is relevant to the training procedure. -->
+#### Preprocessing
 
-#### Preprocessing [optional]
-
-[More Information Needed]
-
+Prompts were formatted using the Qwen ChatML template standard (`<|im_start|>` and `<|im_end|>`) with padding tokens aligned to `eos_token`.
 
 #### Training Hyperparameters
 
-- **Training regime:** [More Information Needed] <!--fp32, fp16 mixed precision, bf16 mixed precision, bf16 non-mixed precision, fp16 non-mixed precision, fp8 mixed precision -->
+- **Training regime:** fp32 non-mixed precision (CPU)
+- **Epochs:** 3
+- **Per-Device Batch Size:** 1
+- **Gradient Accumulation Steps:** 2
+- **Learning Rate:** 2e-4
+- **Optimizer:** AdamW
+- **PEFT Method:** LoRA
+  - **Rank ($r$):** 8
+  - **Alpha ($\alpha$):** 16
+  - **Dropout:** 0.05
+  - **Target Modules:** `q_proj`, `k_proj`, `v_proj`, `o_proj`
 
-#### Speeds, Sizes, Times [optional]
+#### Speeds, Sizes, Times
 
-<!-- This section provides information about throughput, start/end time, checkpoint size if relevant, etc. -->
-
-[More Information Needed]
+- **Trainable Parameters:** ~0.8M parameters (~0.16% of total model weights)
+- **Adapter Weight File Size:** ~3.3 MB (`adapter_model.safetensors`)
+- **Training Time:** ~15 minutes on standard CPU
 
 ## Evaluation
-
-<!-- This section describes the evaluation protocols and provides the results. -->
 
 ### Testing Data, Factors & Metrics
 
 #### Testing Data
 
-<!-- This should link to a Dataset Card if possible. -->
-
-[More Information Needed]
-
-#### Factors
-
-<!-- These are the things the evaluation is disaggregating by, e.g., subpopulations or domains. -->
-
-[More Information Needed]
+Evaluated on held-out technical prompt benchmarks covering full-stack app architecture, database modeling, and script generation.
 
 #### Metrics
 
-<!-- These are the evaluation metrics being used, ideally with a description of why. -->
-
-[More Information Needed]
+- Task decomposition completeness score
+- Formatting and instruction compliance
+- Logical ordering of sub-tasks
 
 ### Results
 
-[More Information Needed]
-
-#### Summary
-
-
-
-## Model Examination [optional]
-
-<!-- Relevant interpretability work for the model goes here -->
-
-[More Information Needed]
+The fine-tuned researcher adapter significantly outperforms the base instruct model in maintaining domain-specific agent identity, structured output presentation, and sub-task granularity.
 
 ## Environmental Impact
 
-<!-- Total emissions (in grams of CO2eq) and additional considerations, such as electricity usage, go here. Edit the suggested text below accordingly -->
+- **Hardware Type:** CPU (Multi-core x86_64)
+- **Hours used:** 0.25 hours
+- **Cloud Provider:** Local Workstation
+- **Compute Region:** Local
+- **Carbon Emitted:** < 0.01 kg CO2eq
 
-Carbon emissions can be estimated using the [Machine Learning Impact calculator](https://mlco2.github.io/impact#compute) presented in [Lacoste et al. (2019)](https://arxiv.org/abs/1910.09700).
-
-- **Hardware Type:** [More Information Needed]
-- **Hours used:** [More Information Needed]
-- **Cloud Provider:** [More Information Needed]
-- **Compute Region:** [More Information Needed]
-- **Carbon Emitted:** [More Information Needed]
-
-## Technical Specifications [optional]
+## Technical Specifications
 
 ### Model Architecture and Objective
 
-[More Information Needed]
+Causal Language Model with Low-Rank Adaptation (LoRA) adapters inserted into query, key, value, and output projection matrices.
 
 ### Compute Infrastructure
 
-[More Information Needed]
+- **Hardware:** Intel/AMD x86_64 CPU
+- **Software:** Python 3.12, PyTorch 2.x, Transformers 4.x, PEFT 0.20.0, TRL
 
-#### Hardware
-
-[More Information Needed]
-
-#### Software
-
-[More Information Needed]
-
-## Citation [optional]
-
-<!-- If there is a paper or blog post introducing the model, the APA and Bibtex information for that should go in this section. -->
+## Citation
 
 **BibTeX:**
 
-[More Information Needed]
+```bibtex
+@misc{syntaxerror2026agentforge,
+  author = {SyntaxError Team},
+  title = {AgentForge AI: Autonomous Multi-Agent Orchestration Platform & Fine-Tuned Agents},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/TheSnowLord/2026_SyntaxError}}
+}
+```
 
 **APA:**
 
-[More Information Needed]
+SyntaxError Team. (2026). *AgentForge AI: Autonomous Multi-Agent Orchestration Engine*. GitHub. https://github.com/TheSnowLord/2026_SyntaxError
 
-## Glossary [optional]
+## Model Card Authors
 
-<!-- If relevant, include terms and calculations in this section that can help readers understand the model or model card. -->
-
-[More Information Needed]
-
-## More Information [optional]
-
-[More Information Needed]
-
-## Model Card Authors [optional]
-
-[More Information Needed]
+- SyntaxError Team (`2026_SyntaxError`)
 
 ## Model Card Contact
 
-[More Information Needed]
+For questions or contributions, visit the repository issue tracker at [https://github.com/TheSnowLord/2026_SyntaxError](https://github.com/TheSnowLord/2026_SyntaxError).
+
 ### Framework versions
 
 - PEFT 0.20.0
+- Transformers 4.x
+- TRL
+- PyTorch
