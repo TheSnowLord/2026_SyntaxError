@@ -47,3 +47,6 @@ Trained on developer_data.jsonl containing high-quality domain system prompts an
 ## Hardware & Environment
 - **Hardware:** NVIDIA GeForce RTX 5060 Laptop GPU
 - **Software:** PyTorch 2.6, PEFT 0.20.0, TRL 1.9.2, Transformers 5.14.1
+### Framework versions
+
+- PEFT 0.20.0
