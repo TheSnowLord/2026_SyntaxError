@@ -42,4 +42,4 @@ def root():
 def health():
     return {
         "status": "healthy"
-    }
+    }
