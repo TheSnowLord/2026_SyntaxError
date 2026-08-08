@@ -1,40 +1,186 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, status
 from uuid import uuid4
+from sqlmodel import select, desc
 
 from app.database.db import get_session
 from app.database.models import AgentSession
+from app.schemas.schemas import SolveRequest, SolveResponse, SessionStatusResponse, SessionListResponse, AnalyticsStatsResponse, ExportReportResponse
+from app.services.ai_service import run_agent_pipeline_background, manager
 
-router = APIRouter()
-
-
-class SolveRequest(BaseModel):
-    goal: str
+router = APIRouter(tags=["Solving & Sessions"])
 
 
-@router.post("/solve")
-def solve(request: SolveRequest):
 
-    session = get_session()
+@router.post("/solve", response_model=SolveResponse, status_code=status.HTTP_200_OK)
+@router.post("/api/solve", response_model=SolveResponse, status_code=status.HTTP_200_OK)
+def solve(request: SolveRequest, background_tasks: BackgroundTasks):
+    if not request.goal or not request.goal.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Goal cannot be empty."
+        )
 
     session_id = str(uuid4())
 
-    new_session = AgentSession(
+    with get_session() as db:
+        new_session = AgentSession(
+            session_id=session_id,
+            goal=request.goal.strip(),
+            status="processing",
+            current_agent="Planner",
+            progress=0
+        )
+        db.add(new_session)
+        db.commit()
+        db.refresh(new_session)
+
+    # Launch background AI multi-agent processing pipeline
+    background_tasks.add_task(run_agent_pipeline_background, session_id, request.goal.strip())
+
+    return SolveResponse(
         session_id=session_id,
-        goal=request.goal,
         status="processing",
         current_agent="Planner",
-        progress=0
+        progress=0,
+        message="Task accepted and multi-agent workflow started."
     )
 
-    session.add(new_session)
-    session.commit()
-    session.refresh(new_session)
 
-    return {
-        "session_id": session_id,
-        "status": "processing",
-        "current_agent": "Planner",
-        "progress": 0,
-        "message": "Task accepted."
-    }
+
+
+@router.get("/api/sessions", response_model=SessionListResponse)
+def list_sessions():
+    with get_session() as db:
+        statement = select(AgentSession).order_by(desc(AgentSession.created_at)).limit(50)
+        results = db.exec(statement).all()
+        sessions = [
+            SessionStatusResponse(
+                session_id=s.session_id,
+                goal=s.goal,
+                status=s.status,
+                current_agent=s.current_agent,
+                progress=s.progress,
+                result=s.result,
+                created_at=s.created_at
+            ) for s in results
+        ]
+        return SessionListResponse(total=len(sessions), sessions=sessions)
+
+
+@router.get("/solve/{session_id}", response_model=SessionStatusResponse)
+@router.get("/api/session/{session_id}", response_model=SessionStatusResponse)
+def get_session_status(session_id: str):
+    with get_session() as db:
+        statement = select(AgentSession).where(AgentSession.session_id == session_id)
+        session_obj = db.exec(statement).first()
+
+        if not session_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found."
+            )
+
+        return SessionStatusResponse(
+            session_id=session_obj.session_id,
+            goal=session_obj.goal,
+            status=session_obj.status,
+            current_agent=session_obj.current_agent,
+            progress=session_obj.progress,
+            result=session_obj.result,
+            created_at=session_obj.created_at
+        )
+
+
+@router.websocket("/ws/solve/{session_id}")
+@router.websocket("/ws/session/{session_id}")
+async def websocket_session_stream(websocket: WebSocket, session_id: str):
+    await manager.connect(session_id, websocket)
+    try:
+        # Send initial session state upon connection
+        with get_session() as db:
+            statement = select(AgentSession).where(AgentSession.session_id == session_id)
+            session_obj = db.exec(statement).first()
+            if session_obj:
+                await websocket.send_json({
+                    "event": "initial_state",
+                    "session_id": session_obj.session_id,
+                    "goal": session_obj.goal,
+                    "status": session_obj.status,
+                    "current_agent": session_obj.current_agent,
+                    "progress": session_obj.progress,
+                    "result": session_obj.result
+                })
+
+        # Keep connection open for incoming pings or messages
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        manager.disconnect(session_id, websocket)
+
+
+@router.get("/api/stats", response_model=AnalyticsStatsResponse)
+def get_analytics_stats():
+    with get_session() as db:
+        statement = select(AgentSession)
+        results = db.exec(statement).all()
+        total = len(results)
+
+        completed = sum(1 for s in results if s.status == "completed")
+        failed = sum(1 for s in results if s.status == "failed")
+        processing = sum(1 for s in results if s.status == "processing")
+        avg_progress = (sum(s.progress for s in results) / total) if total > 0 else 0.0
+
+        breakdown = {}
+        for s in results:
+            agent = s.current_agent or "Unknown"
+            breakdown[agent] = breakdown.get(agent, 0) + 1
+
+        return AnalyticsStatsResponse(
+            total_sessions=total,
+            completed_sessions=completed,
+            failed_sessions=failed,
+            processing_sessions=processing,
+            average_progress=round(avg_progress, 1),
+            active_agent_breakdown=breakdown
+        )
+
+
+@router.delete("/api/session/{session_id}")
+def delete_session(session_id: str):
+    with get_session() as db:
+        statement = select(AgentSession).where(AgentSession.session_id == session_id)
+        session_obj = db.exec(statement).first()
+        if not session_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found."
+            )
+        db.delete(session_obj)
+        db.commit()
+        return {"message": f"Session '{session_id}' successfully deleted."}
+
+
+@router.get("/api/session/{session_id}/export", response_model=ExportReportResponse)
+def export_session_report(session_id: str):
+    with get_session() as db:
+        statement = select(AgentSession).where(AgentSession.session_id == session_id)
+        session_obj = db.exec(statement).first()
+        if not session_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found."
+            )
+
+        report = session_obj.result or f"# AgentForge AI Session Report\n\n**Goal**: {session_obj.goal}\n**Status**: {session_obj.status}\n**Progress**: {session_obj.progress}%"
+
+        return ExportReportResponse(
+            session_id=session_obj.session_id,
+            goal=session_obj.goal,
+            status=session_obj.status,
+            created_at=session_obj.created_at,
+            report_markdown=report
+        )
+
+

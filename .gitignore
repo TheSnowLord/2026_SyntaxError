@@ -1,21 +1,36 @@
-# Python virtual environments
-**/.venv/
-venv/
-
-# Python cache
+# Python bytecode & cache
+__pycache__/
 **/__pycache__/
 *.py[cod]
 *.pyo
+*$py.class
 
-# Environment variables
+# Virtual environments
+.venv/
+**/.venv/
+venv/
+venv312/
+env/
+ENV/
+
+# Model Checkpoints (local scratch models)
+local_researcher_model/
+local_developer_model/
+
+# Node modules & build artifacts
+node_modules/
+dist/
+
+# Environment keys
+.env
 **/.env
 
-# SQLite databases
+# SQLite Database
 *.db
+hackpreneur.db
 
-# VS Code
+# IDE & OS files
 .vscode/
-
-# OS files
+.idea/
 .DS_Store
-Thumbs.db
+Thumbs.db
