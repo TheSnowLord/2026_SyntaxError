@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -25,5 +25,11 @@ class SessionStatusResponse(BaseModel):
     created_at: datetime
 
 
+class SessionListResponse(BaseModel):
+    total: int
+    sessions: List[SessionStatusResponse]
+
+
 class ErrorResponse(BaseModel):
     detail: str
+
