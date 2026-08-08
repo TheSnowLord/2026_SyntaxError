@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.solve import router as solve_router
 from app.database.db import create_db
@@ -9,7 +10,16 @@ app = FastAPI(
     description="Backend for Multi-Agent Collaboration"
 )
 
-# Register all API routes
+# Enable CORS for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register API routes
 app.include_router(solve_router)
 
 
@@ -32,4 +42,4 @@ def root():
 def health():
     return {
         "status": "healthy"
-    }
+    }
