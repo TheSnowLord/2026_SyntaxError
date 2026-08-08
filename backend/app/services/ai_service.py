@@ -137,33 +137,40 @@ def run_agent_pipeline_background(session_id: str, goal: str):
     try:
         # Stage 1: Planner Agent
         logger.info(f"Session {session_id}: Planner agent analyzing goal...")
-        planner_res = call_llm_agent(f"Analyze goal: '{goal}' and state the execution plan.", "Planner")
-        update_session_state(session_id, current_agent="Planner", progress=25, status="processing")
-        time.sleep(1.2)
+        planner_res = call_llm_agent(f"Analyze goal: '{goal}' and state the strategic execution plan.", "Planner")
+        update_session_state(session_id, current_agent="Planner", progress=20, status="processing")
+        time.sleep(1.0)
 
-        # Stage 2: Task Decomposition Agent
+        # Stage 2: Decomposer Agent
         logger.info(f"Session {session_id}: Decomposer breaking down tasks...")
-        decomposer_res = call_llm_agent(f"Decompose goal: '{goal}' into 3 clear sub-tasks.", "Decomposer")
-        update_session_state(session_id, current_agent="Decomposer", progress=50, status="processing")
-        time.sleep(1.2)
+        decomposer_res = call_llm_agent(f"Decompose goal: '{goal}' into clear, modular sub-tasks.", "Decomposer")
+        update_session_state(session_id, current_agent="Decomposer", progress=40, status="processing")
+        time.sleep(1.0)
 
-        # Stage 3: Execution Agent
-        logger.info(f"Session {session_id}: Executor running task sub-agents...")
-        executor_res = call_llm_agent(f"Execute work for goal: '{goal}' based on sub-tasks.", "Executor")
-        update_session_state(session_id, current_agent="Executor", progress=75, status="processing")
-        time.sleep(1.2)
+        # Stage 3: Researcher Agent
+        logger.info(f"Session {session_id}: Researcher analyzing architecture & specs...")
+        researcher_res = call_llm_agent(f"Research technical architecture and best practices for: '{goal}'.", "Researcher")
+        update_session_state(session_id, current_agent="Researcher", progress=60, status="processing")
+        time.sleep(1.0)
 
-        # Stage 4: Evaluator & Final Synthesis
+        # Stage 4: Developer Agent
+        logger.info(f"Session {session_id}: Developer agent generating code implementation...")
+        developer_res = call_llm_agent(f"Generate clean, production-ready code implementation for: '{goal}'.", "Developer")
+        update_session_state(session_id, current_agent="Developer", progress=80, status="processing")
+        time.sleep(1.0)
+
+        # Stage 5: Evaluator Agent & Solution Synthesis
         logger.info(f"Session {session_id}: Evaluator synthesizing final output...")
-        evaluator_res = call_llm_agent(f"Synthesize final solution for: '{goal}'.", "Evaluator")
+        evaluator_res = call_llm_agent(f"Verify, review code quality, and synthesize final output for: '{goal}'.", "Evaluator")
         
         final_solution = (
-            f"### AgentForge AI Unified Solution\n"
+            f"### AgentForge AI 5-Stage Multi-Agent Unified Solution\n"
             f"**Goal**: {goal}\n\n"
             f"#### 1. Strategic Plan (Planner Agent)\n{planner_res}\n\n"
             f"#### 2. Task Decomposition (Decomposer Agent)\n{decomposer_res}\n\n"
-            f"#### 3. Sub-Task Execution (Executor Agent)\n{executor_res}\n\n"
-            f"#### 4. Final Evaluation & Solution Synthesis\n{evaluator_res}"
+            f"#### 3. Architecture & Technical Research (Researcher Agent)\n{researcher_res}\n\n"
+            f"#### 4. Production Code Implementation (Developer Agent)\n{developer_res}\n\n"
+            f"#### 5. Evaluation & Final Synthesis (Evaluator Agent)\n{evaluator_res}"
         )
 
         update_session_state(
@@ -173,6 +180,7 @@ def run_agent_pipeline_background(session_id: str, goal: str):
             status="completed",
             result=final_solution
         )
+
         logger.info(f"Session {session_id}: Completed successfully.")
 
     except Exception as e:

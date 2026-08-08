@@ -32,6 +32,24 @@ class SessionListResponse(BaseModel):
     sessions: List[SessionStatusResponse]
 
 
+class AnalyticsStatsResponse(BaseModel):
+    total_sessions: int
+    completed_sessions: int
+    failed_sessions: int
+    processing_sessions: int
+    average_progress: float
+    active_agent_breakdown: dict
+
+
+class ExportReportResponse(BaseModel):
+    session_id: str
+    goal: str
+    status: str
+    created_at: datetime
+    report_markdown: str
+
+
 class ErrorResponse(BaseModel):
     detail: str
+
 
