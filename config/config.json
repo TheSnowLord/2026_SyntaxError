@@ -1,0 +1,11 @@
+{
+    "name": "Planner AI",
+    "version": "1.0",
+    "model_source": "HuggingFace / Cloud Storage",
+    "features": [
+        "AI Planning",
+        "Task Generation",
+        "Priority Ranking",
+        "Execution Engine"
+    ]
+}
