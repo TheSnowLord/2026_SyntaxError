@@ -34,39 +34,52 @@ export default function App() {
     setLoading(true);
     setResult(null);
     setLogs([]);
-    setProgress(15);
+    setProgress(10);
 
     // Reset agents
     setAgents(initialAgents.map(a => ({ ...a, status: 'pending' })));
     updateAgentStatus(0, 'in_progress', 'Planner Agent started analyzing the goal');
 
     try {
-      // Step 1: Call FastAPI backend with Gemini AI
-      const response = await axios.post('http://127.0.0.1:8000/solve', { goal });
+      // Step 1: Submit task to backend
+      const solveRes = await axios.post('http://127.0.0.1:8000/solve', { goal });
+      const sessionId = solveRes.data.session_id;
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Task accepted. Session ID: ${sessionId}`]);
 
-      // Simulate visual progress steps for Agents
-      setTimeout(() => {
-        updateAgentStatus(0, 'completed', 'Execution plan created');
-        updateAgentStatus(1, 'in_progress', 'Research Agent gathering context');
-        setProgress(40);
+      // Step 2: Poll status until completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await axios.get(`http://127.0.0.1:8000/solve/${sessionId}`);
+          const { status, current_agent, progress: serverProgress, result: finalResult } = statusRes.data;
+
+          setProgress(serverProgress > 0 ? serverProgress : 20);
+
+          if (current_agent === 'Planner') {
+            updateAgentStatus(0, 'in_progress', 'Planner Agent forming execution plan');
+          } else if (current_agent === 'Decomposer') {
+            updateAgentStatus(0, 'completed');
+            updateAgentStatus(1, 'in_progress', 'Decomposer Agent breaking into sub-tasks');
+          } else if (current_agent === 'Researcher') {
+            updateAgentStatus(1, 'completed');
+            updateAgentStatus(2, 'in_progress', 'Researcher Agent gathering technical specs');
+          } else if (current_agent === 'Developer') {
+            updateAgentStatus(2, 'completed');
+            updateAgentStatus(3, 'in_progress', 'Developer Agent generating production code');
+          } else if (current_agent === 'Evaluator' || status === 'completed') {
+            updateAgentStatus(3, 'completed');
+            updateAgentStatus(4, 'completed', 'Evaluator Agent verifying final response');
+          }
+
+          if (status === 'completed' || status === 'failed') {
+            clearInterval(pollInterval);
+            setProgress(100);
+            setResult(finalResult || 'Multi-Agent pipeline execution finished.');
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error polling status:', err);
+        }
       }, 800);
-
-      setTimeout(() => {
-        updateAgentStatus(1, 'completed', 'Context gathered');
-        updateAgentStatus(2, 'in_progress', 'Developer Agent running solution');
-        setProgress(70);
-      }, 1600);
-
-      setTimeout(() => {
-        updateAgentStatus(2, 'completed', 'Task processed');
-        updateAgentStatus(3, 'completed', 'Quality check passed');
-        updateAgentStatus(4, 'completed', 'Final response compiled');
-        setProgress(100);
-
-        // Display actual Gemini AI result
-        setResult(response.data.result || JSON.stringify(response.data, null, 2));
-        setLoading(false);
-      }, 2400);
 
     } catch (error) {
       console.error("Error connecting to backend:", error);
@@ -74,6 +87,7 @@ export default function App() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
