@@ -189,7 +189,7 @@ export default function App() {
           {/* Output Display */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex-1 flex flex-col">
             <h2 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-              <FileText size={16} className="text-indigo-400" /> Gemini AI Generated Output
+              <Sparkles size={16} className="text-indigo-400" /> AgentForge AI Multi-Agent Generated Output
             </h2>
             
             <div className="min-h-[300px] flex-1 border border-slate-800 rounded-lg p-4 bg-slate-950 overflow-y-auto">
